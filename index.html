@@ -1,162 +1,481 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World - Reso-Calm</title>
+    <title>Project Timeline Visualizer</title>
     <style>
-        /* Import Google Font - Inter */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
-
-        :root {
-            --primary-bg: #1A1A2E;
-            --text-color: #E0E0E0;
-            --accent-blue-purple: #8D9EFF;
-            --accent-sage-green: #7AA874;
-            --accent-light-cream: #D6E6F2;
-            --secondary-bg: #2A2A4A;
-        }
-
         body {
+            font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-            background-color: var(--primary-bg);
-            color: var(--text-color);
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        #app {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden; /* Hide overflow from animations */
+            margin: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #task-tree {
+            width: 300px;
+            padding: 20px;
+            border-right: 1px solid #eee;
+            overflow-y: auto;
+            max-height: calc(100vh - 40px);
+        }
+        .task-item {
+            cursor: pointer;
+            padding: 5px 0;
+            position: relative;
+            user-select: none;
+            font-size: 0.9em;
+        }
+        .task-item:hover {
+            background-color: #f0f0f0;
+        }
+        .task-item.summary {
+            font-weight: bold;
+            color: #0056b3;
+        }
+        .task-item.milestone-tree-item {
+            color: #8B008B; /* Dark Magenta for milestones in tree */
+        }
+        .toggle-btn {
+            display: inline-block;
+            width: 15px;
+            text-align: center;
+            margin-right: 5px;
+        }
+        #gantt-chart {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-x: auto;
             position: relative;
         }
-
-        .content {
-            z-index: 10; /* Ensure text is above animations */
-            text-align: center;
-            position: relative; /* Needed for z-index to work against sibling animated circles */
+        #time-scale {
+            position: sticky;
+            top: 0;
+            background-color: #fff;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            z-index: 10;
+            display: flex;
+            font-size: 0.8em;
+            white-space: nowrap;
         }
-
-        h1 {
-            font-size: 4em; /* Larger on desktop */
-            font-weight: 500;
-            margin: 0;
-            padding: 0;
-            line-height: 1;
-        }
-
-        /* Responsive font size for H1 */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 3em;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 2.5em;
-            }
-        }
-
-        /* Soft Circular Animations */
-        .circle {
+        .month-label, .week-label {
             position: absolute;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%); /* Subtle gradient for soft glow */
-            filter: blur(8px); /* Soft blur */
-            animation: floatAndFade 15s infinite ease-in-out alternate;
-            opacity: 0; /* Start hidden */
-            z-index: 1;
+            text-align: center;
+            padding: 2px 0;
+            border-left: 1px dashed #ddd;
+        }
+        .month-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .week-label {
+            color: #777;
+        }
+        #gantt-bars {
+            position: relative;
+            padding-top: 50px; /* Space for time scale */
+            min-height: 500px; /* Adjust as needed based on tasks */
+        }
+        .gantt-bar {
+            position: absolute;
+            height: 15px;
+            background-color: #4CAF50;
+            border-radius: 3px;
+            cursor: grab;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            z-index: 5;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        .gantt-bar:hover {
+            opacity: 1;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        .gantt-bar.milestone {
+            background-color: #8B008B; /* Dark Magenta */
+            width: 15px;
+            height: 15px;
+            transform: rotate(45deg);
+            border-radius: 0;
+            left: calc(var(--start-position) - 7.5px); /* Center diamond */
+        }
+        .gantt-bar.summary-task {
+            background-color: #ADD8E6; /* Light Blue for summary tasks */
+            height: 8px; /* Thinner for summary */
+            opacity: 0.7;
         }
 
-        /* Specific circle styles for varied appearance */
-        .circle:nth-child(1) {
-            width: 150px;
-            height: 150px;
-            background-color: var(--accent-blue-purple);
-            top: 10%;
-            left: 5%;
-            animation-delay: 0s;
-            animation-duration: 18s;
-        }
-
-        .circle:nth-child(2) {
-            width: 200px;
-            height: 200px;
-            background-color: var(--accent-sage-green);
-            bottom: 15%;
-            right: 10%;
-            animation-delay: 3s;
-            animation-duration: 20s;
-        }
-
-        .circle:nth-child(3) {
-            width: 100px;
-            height: 100px;
-            background-color: var(--accent-light-cream);
-            top: 20%;
-            right: 20%;
-            animation-delay: 6s;
-            animation-duration: 16s;
-        }
-
-        .circle:nth-child(4) {
-            width: 180px;
-            height: 180px;
-            background-color: var(--accent-blue-purple);
-            bottom: 5%;
-            left: 20%;
-            animation-delay: 9s;
-            animation-duration: 22s;
-        }
-
-        .circle:nth-child(5) {
-            width: 120px;
-            height: 120px;
-            background-color: var(--accent-sage-green);
+        /* Edit Form Styles */
+        #edit-form {
+            position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%); /* Center this specific circle */
-            animation-delay: 12s;
-            animation-duration: 19s;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 300px;
+            border: 1px solid #ddd;
         }
-
-        /* Animation Keyframes */
-        @keyframes floatAndFade {
-            0% {
-                transform: translateY(0) scale(1) translateX(0) rotate(0deg);
-                opacity: 0.1;
-            }
-            25% {
-                transform: translateY(-20px) scale(1.05) translateX(10px) rotate(5deg);
-                opacity: 0.2;
-            }
-            50% {
-                transform: translateY(0) scale(1.1) translateX(0) rotate(0deg);
-                opacity: 0.15;
-            }
-            75% {
-                transform: translateY(20px) scale(1.05) translateX(-10px) rotate(-5deg);
-                opacity: 0.2;
-            }
-            100% {
-                transform: translateY(0) scale(1) translateX(0) rotate(0deg);
-                opacity: 0.1;
-            }
+        #edit-form h3 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+        #edit-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #edit-form input[type="text"],
+        #edit-form input[type="date"] {
+            width: calc(100% - 16px);
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        #edit-form button {
+            padding: 10px 15px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        #edit-form #save-task {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #edit-form #cancel-edit {
+            background-color: #f44336;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <div class="background-animations">
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
-        <div class="circle"></div>
+    <div id="app">
+        <div id="task-tree"></div>
+        <div id="gantt-chart">
+            <div id="time-scale"></div>
+            <div id="gantt-bars"></div>
+        </div>
     </div>
-    <div class="content">
-        <h1>Hello World!</h1>
+    <div id="edit-form" style="display: none;">
+        <h3>編輯任務</h3>
+        <label for="task-name">名稱:</label>
+        <input type="text" id="task-name"><br>
+        <label for="task-start">開始日期:</label>
+        <input type="date" id="task-start"><br>
+        <label for="task-finish">結束日期:</label>
+        <input type="date" id="task-finish"><br>
+        <button id="save-task">保存</button>
+        <button id="cancel-edit">取消</button>
     </div>
+
+    <script>
+        let timelineData = []; // This will hold the parsed JSON data
+        let originalTimelineData = []; // To store the initial state or last saved state
+        let selectedTask = null; // Currently selected task for editing
+        let currentMaxY = 0; // To track vertical position of Gantt bars
+
+        const taskTreeElem = document.getElementById('task-tree');
+        const ganttChartElem = document.getElementById('gantt-chart');
+        const timeScaleElem = document.getElementById('time-scale');
+        const ganttBarsElem = document.getElementById('gantt-bars');
+        const editFormElem = document.getElementById('edit-form');
+        const taskNameInput = document.getElementById('task-name');
+        const taskStartInput = document.getElementById('task-start');
+        const taskFinishInput = document.getElementById('task-finish');
+
+        // Function to fetch data
+        async function fetchData() {
+            try {
+                const response = await fetch('timeline-data.json');
+                const data = await response.json();
+                timelineData = data.tasks || []; // Assuming data is { tasks: [...] }
+                // Attempt to load from localStorage first if available, otherwise use fetched data
+                const savedData = localStorage.getItem('timelineData');
+                if (savedData) {
+                    console.log('Loading timeline data from localStorage.');
+                    timelineData = JSON.parse(savedData);
+                } else {
+                    console.log('Fetching fresh timeline data.');
+                }
+                originalTimelineData = JSON.parse(JSON.stringify(timelineData)); // Deep copy for reset/comparison
+                renderTimeline();
+            } catch (error) {
+                console.error('Error fetching timeline data from timeline-data.json:', error);
+                // If fetch fails, try to load from localStorage as a fallback
+                const savedData = localStorage.getItem('timelineData');
+                if (savedData) {
+                    console.warn('Falling back to localStorage data.');
+                    timelineData = JSON.parse(savedData);
+                    originalTimelineData = JSON.parse(JSON.stringify(timelineData));
+                    renderTimeline();
+                } else {
+                    console.error('No timeline data available. Please ensure timeline-data.json exists and is valid, or data is saved in localStorage.');
+                }
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('timelineData', JSON.stringify(timelineData));
+            console.log('Timeline data saved to localStorage.');
+        }
+
+        function formatDateForInput(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            if (isNaN(date)) return '';
+            return date.toISOString().split('T')[0];
+        }
+
+        function renderTimeline() {
+            // Clear existing content
+            taskTreeElem.innerHTML = '';
+            ganttBarsElem.innerHTML = '';
+            timeScaleElem.innerHTML = '';
+            currentMaxY = 0; // Reset vertical position
+
+            if (timelineData.length === 0) {
+                taskTreeElem.textContent = '沒有任務資料。';
+                return;
+            }
+
+            // Calculate overall date range for Gantt chart
+            const allDates = timelineData.flatMap(task => {
+                const dates = [];
+                if (task.start) dates.push(new Date(task.start));
+                if (task.finish) dates.push(new Date(task.finish));
+                return dates;
+            }).filter(d => !isNaN(d));
+
+            if (allDates.length === 0) {
+                taskTreeElem.textContent = '任務資料中沒有有效日期。';
+                return;
+            }
+
+            const minDate = new Date(Math.min(...allDates));
+            minDate.setDate(minDate.getDate() - 15); // Add some padding
+            minDate.setHours(0, 0, 0, 0);
+
+            const maxDate = new Date(Math.max(...allDates));
+            maxDate.setDate(maxDate.getDate() + 15); // Add some padding
+            maxDate.setHours(23, 59, 59, 999);
+
+            const chartWidth = ganttChartElem.offsetWidth - 40; // Adjust for padding
+            const totalDaysInRange = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+            const pixelsPerDay = chartWidth / totalDaysInRange;
+
+            renderTimeScale(minDate, maxDate, pixelsPerDay);
+
+            // Create a flat list of tasks with their calculated Y positions
+            const tasksWithPositions = [];
+            let yPosition = 0;
+            const renderTask = (task, level) => {
+                const taskTreeItem = document.createElement('div');
+                taskTreeItem.className = 'task-item';
+                taskTreeItem.style.paddingLeft = `${level * 15}px`;
+
+                const toggleBtn = document.createElement('span');
+                toggleBtn.className = 'toggle-btn';
+                if (task.summary && task.children && task.children.length > 0) {
+                    toggleBtn.textContent = '▼'; // Down arrow for expanded
+                    toggleBtn.onclick = (e) => {
+                        e.stopPropagation(); // Prevent toggling when clicking the text
+                        task.expanded = !task.expanded;
+                        renderTimeline(); // Re-render to show/hide children
+                    };
+                } else {
+                    toggleBtn.textContent = ''; // No toggle for non-summary or empty summary
+                }
+                taskTreeItem.appendChild(toggleBtn);
+
+                const taskNameSpan = document.createElement('span');
+                taskNameSpan.textContent = task.name;
+                taskTreeItem.appendChild(taskNameSpan);
+
+                if (task.summary) taskTreeItem.classList.add('summary');
+                if (task.milestone) taskTreeItem.classList.add('milestone-tree-item');
+
+                taskTreeElem.appendChild(taskTreeItem);
+
+                // Store task with its calculated Y position
+                tasksWithPositions.push({ task: task, y: yPosition });
+                yPosition += 25; // Line height for each task item
+
+                if (task.expanded !== false && task.children && task.children.length > 0) {
+                    task.children.forEach(child => renderTask(child, level + 1));
+                }
+            };
+
+            // Build hierarchical task structure if not already done
+            const topLevelTasks = buildTaskHierarchy(timelineData);
+            topLevelTasks.forEach(task => renderTask(task, 0));
+
+            // Render Gantt Bars
+            tasksWithPositions.forEach(item => {
+                const task = item.task;
+                const y = item.y + 50; // Adjust for time scale height
+
+                if (task.start && task.finish) {
+                    const startDate = new Date(task.start);
+                    const finishDate = new Date(task.finish);
+
+                    if (isNaN(startDate) || isNaN(finishDate)) return;
+
+                    const startOffsetDays = (startDate - minDate) / (1000 * 60 * 60 * 24);
+                    const durationDays = (finishDate - startDate) / (1000 * 60 * 60 * 24);
+
+                    const bar = document.createElement('div');
+                    bar.className = 'gantt-bar';
+                    bar.style.top = `${y}px`;
+                    bar.dataset.taskId = task.unique_id;
+
+                    if (task.milestone) {
+                        bar.classList.add('milestone');
+                        bar.style.left = `${startOffsetDays * pixelsPerDay}px`;
+                        bar.style.setProperty('--start-position', `${startOffsetDays * pixelsPerDay}px`); // For centering diamond
+                    } else if (task.summary) {
+                        bar.classList.add('summary-task');
+                        bar.style.left = `${startOffsetDays * pixelsPerDay}px`;
+                        bar.style.width = `${durationDays * pixelsPerDay}px`;
+                    } else {
+                        bar.style.left = `${startOffsetDays * pixelsPerDay}px`;
+                        bar.style.width = `${durationDays * pixelsPerDay}px`;
+                    }
+
+                    bar.onclick = (e) => {
+                        e.stopPropagation(); // Prevent clicking through to other elements
+                        openEditForm(task);
+                    };
+                    ganttBarsElem.appendChild(bar);
+                }
+            });
+            ganttBarsElem.style.height = `${yPosition + 50}px`; // Adjust overall height
+            taskTreeElem.style.maxHeight = `${yPosition + 50}px`;
+        }
+
+        // Helper to build task hierarchy based on unique_id and parent_task_unique_id
+        function buildTaskHierarchy(flatTasks) {
+            const tasksMap = new Map();
+            flatTasks.forEach(task => {
+                tasksMap.set(task.unique_id, { ...task, children: [], expanded: true }); // Default to expanded
+            });
+
+            const rootTasks = [];
+            flatTasks.forEach(task => {
+                if (task.parent_task_unique_id && tasksMap.has(task.parent_task_unique_id)) {
+                    tasksMap.get(task.parent_task_unique_id).children.push(tasksMap.get(task.unique_id));
+                } else {
+                    rootTasks.push(tasksMap.get(task.unique_id));
+                }
+            });
+
+            // Sort children by unique_id for consistent rendering
+            rootTasks.forEach(sortChildren);
+            return rootTasks;
+        }
+
+        function sortChildren(task) {
+            if (task.children) {
+                task.children.sort((a, b) => a.unique_id - b.unique_id);
+                task.children.forEach(sortChildren);
+            }
+        }
+
+
+        function renderTimeScale(minDate, maxDate, pixelsPerDay) {
+            timeScaleElem.innerHTML = '';
+            const oneDay = 1000 * 60 * 60 * 24;
+
+            // Render Months
+            let currentMonth = new Date(minDate);
+            currentMonth.setDate(1); // Start from the first day of the month
+            currentMonth.setHours(0, 0, 0, 0);
+
+            while (currentMonth <= maxDate) {
+                const nextMonth = new Date(currentMonth);
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                nextMonth.setDate(1); // First day of next month
+
+                const monthStartOffsetDays = (currentMonth - minDate) / oneDay;
+                const monthEndOffsetDays = (nextMonth > maxDate ? maxDate : nextMonth - oneDay - minDate) / oneDay;
+                const monthWidthDays = (nextMonth - currentMonth) / oneDay;
+
+                const monthLabel = document.createElement('div');
+                monthLabel.className = 'month-label';
+                monthLabel.textContent = currentMonth.toLocaleString('zh-TW', { month: 'short', year: 'numeric' });
+                monthLabel.style.left = `${monthStartOffsetDays * pixelsPerDay}px`;
+                monthLabel.style.width = `${monthWidthDays * pixelsPerDay}px`;
+                timeScaleElem.appendChild(monthLabel);
+
+                currentMonth.setMonth(currentMonth.getMonth() + 1);
+            }
+
+            // Render Weeks/Days (simplified to just weeks for brevity)
+            let currentDay = new Date(minDate);
+            while (currentDay <= maxDate) {
+                const dayOffsetDays = (currentDay - minDate) / oneDay;
+
+                // Mark every 7 days as a week start
+                if (currentDay.getDay() === 0) { // Sunday
+                    const weekLabel = document.createElement('div');
+                    weekLabel.className = 'week-label';
+                    weekLabel.textContent = currentDay.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+                    weekLabel.style.left = `${dayOffsetDays * pixelsPerDay}px`;
+                    weekLabel.style.width = `${pixelsPerDay * 7}px`; // Roughly a week's width
+                    timeScaleElem.appendChild(weekLabel);
+                }
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+        }
+
+        function openEditForm(task) {
+            selectedTask = task;
+            taskNameInput.value = task.name || '';
+            taskStartInput.value = formatDateForInput(task.start);
+            taskFinishInput.value = formatDateForInput(task.finish);
+            editFormElem.style.display = 'block';
+        }
+
+        document.getElementById('save-task').onclick = () => {
+            if (selectedTask) {
+                selectedTask.name = taskNameInput.value;
+                selectedTask.start = taskStartInput.value;
+                selectedTask.finish = taskFinishInput.value;
+
+                // Update timelineData
+                const index = timelineData.findIndex(t => t.unique_id === selectedTask.unique_id);
+                if (index !== -1) {
+                    timelineData[index] = selectedTask;
+                }
+                saveToLocalStorage();
+                renderTimeline(); // Re-render with updated data
+                editFormElem.style.display = 'none';
+            }
+        };
+
+        document.getElementById('cancel-edit').onclick = () => {
+            editFormElem.style.display = 'none';
+            selectedTask = null;
+        };
+
+        // Initial fetch and render
+        fetchData();
+    </script>
 </body>
 </html>
