@@ -7,112 +7,212 @@
     <title>Project Timeline Visualizer</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            background-color: #eef2f7;
             color: #333;
+            display: flex;
+            min-height: 100vh;
         }
         #app {
             display: flex;
+            flex-grow: 1;
             margin: 20px;
             background-color: #fff;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 12px;
             overflow: hidden;
         }
         #task-tree {
-            width: 300px;
-            padding: 20px;
-            border-right: 1px solid #eee;
+            width: 320px;
+            padding: 20px 0;
+            border-right: 1px solid #e0e0e0;
             overflow-y: auto;
             max-height: calc(100vh - 40px);
+            flex-shrink: 0;
+            background-color: #fcfcfc;
         }
         .task-item {
             cursor: pointer;
-            padding: 5px 0;
+            padding: 8px 20px;
             position: relative;
             user-select: none;
-            font-size: 0.9em;
+            font-size: 0.95em;
+            transition: background-color 0.2s ease;
         }
         .task-item:hover {
             background-color: #f0f0f0;
         }
+        .task-item.selected {
+            background-color: #e0f2f7;
+            border-left: 4px solid #007bff;
+            padding-left: 16px; /* Adjust for border */
+        }
         .task-item.summary {
             font-weight: bold;
             color: #0056b3;
+            background-color: #e9f5ff;
+        }
+        .task-item.summary.selected {
+            background-color: #d0efff;
         }
         .task-item.milestone-tree-item {
             color: #8B008B; /* Dark Magenta for milestones in tree */
+            font-style: italic;
         }
         .toggle-btn {
             display: inline-block;
-            width: 15px;
+            width: 18px;
             text-align: center;
             margin-right: 5px;
+            color: #555;
+            font-weight: bold;
         }
         #gantt-chart {
             flex-grow: 1;
-            padding: 20px;
-            overflow-x: auto;
+            padding: 0 20px 20px 20px; /* Adjust padding for scrollbars */
+            overflow: auto; /* Both x and y scroll */
             position: relative;
         }
-        #time-scale {
+        #time-scale-wrapper {
             position: sticky;
             top: 0;
             background-color: #fff;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
+            padding-top: 20px; /* Initial top padding */
             z-index: 10;
-            display: flex;
-            font-size: 0.8em;
-            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin: 0 -20px; /* Compensate for gantt-chart padding */
+            padding-left: 20px;
+            padding-right: 20px;
         }
-        .month-label, .week-label {
+        #time-scale {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            font-size: 0.75em;
+            white-space: nowrap;
+            height: 70px; /* Height for month and day/week labels */
+        }
+        .month-row, .day-row {
+            display: flex;
+            position: relative;
+            height: 35px;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+        .month-label, .day-label {
             position: absolute;
             text-align: center;
             padding: 2px 0;
-            border-left: 1px dashed #ddd;
+            /* border-left: 1px solid #ddd; */ /* Grid lines handled by #gantt-grid */
+            box-sizing: border-box;
         }
         .month-label {
             font-weight: bold;
             color: #555;
+            top: 0;
+            height: 35px;
+            line-height: 35px;
         }
-        .week-label {
+        .day-label {
             color: #777;
+            top: 35px;
+            height: 35px;
+            line-height: 35px;
+            border-left: 1px dashed #f0f0f0; /* Lighter dashed line for days */
         }
-        #gantt-bars {
+        .day-label.weekend {
+            background-color: #fdfdff; /* Subtle background for weekends */
+        }
+
+        #gantt-content {
             position: relative;
-            padding-top: 50px; /* Space for time scale */
+            padding-top: 10px; /* Space between time scale and bars */
             min-height: 500px; /* Adjust as needed based on tasks */
+        }
+        .gantt-bar-row {
+            position: relative;
+            height: 30px; /* Height for each task row */
+            margin-bottom: 5px; /* Space between rows */
+            display: flex;
+            align-items: center;
+        }
+        #gantt-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allow clicks to pass through */
+            z-index: 1;
+        }
+        .grid-line-day {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background-color: #f0f0f0; /* Light grid line */
+            border-left: 1px dashed #f0f0f0;
+        }
+        .grid-line-week {
+            background-color: #e0e0e0; /* Slightly darker for week start */
+        }
+        .grid-line-month {
+            background-color: #d0d0d0; /* Even darker for month start */
         }
         .gantt-bar {
             position: absolute;
-            height: 15px;
-            background-color: #4CAF50;
-            border-radius: 3px;
+            height: 20px; /* Taller bars */
+            line-height: 20px;
+            background-color: #4CAF50; /* Green */
+            border-radius: 4px;
             cursor: grab;
-            opacity: 0.8;
-            transition: opacity 0.2s;
+            opacity: 0.9;
+            transition: opacity 0.2s, box-shadow 0.2s;
             z-index: 5;
-            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            box-sizing: border-box;
+            color: white;
+            font-size: 0.75em;
+            padding-left: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .gantt-bar:hover {
             opacity: 1;
-            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
         .gantt-bar.milestone {
             background-color: #8B008B; /* Dark Magenta */
-            width: 15px;
-            height: 15px;
+            width: 20px;
+            height: 20px;
             transform: rotate(45deg);
-            border-radius: 0;
-            left: calc(var(--start-position) - 7.5px); /* Center diamond */
+            border-radius: 2px; /* Slight roundness for diamond */
+            left: calc(var(--start-position) - 10px); /* Center diamond */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0; /* Hide text inside diamond */
+        }
+        .gantt-bar.milestone::after {
+            content: ''; /* Empty content for diamond visual */
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: inherit;
+            transform: rotate(-45deg); /* Counter-rotate text if needed, but not here */
+            opacity: 0.9;
         }
         .gantt-bar.summary-task {
-            background-color: #ADD8E6; /* Light Blue for summary tasks */
-            height: 8px; /* Thinner for summary */
-            opacity: 0.7;
+            background-color: #5D9CEC; /* Blue for summary tasks */
+            height: 12px; /* Thinner for summary */
+            line-height: 12px;
+            opacity: 0.8;
+            font-weight: bold;
+        }
+        .gantt-bar.normal-task {
+            background-color: #4CAF50; /* Green for normal tasks */
         }
 
         /* Edit Form Styles */
@@ -122,46 +222,77 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background-color: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
             z-index: 1000;
-            min-width: 300px;
+            min-width: 350px;
             border: 1px solid #ddd;
+            display: none; /* Hidden by default */
         }
         #edit-form h3 {
             margin-top: 0;
-            color: #0056b3;
+            color: #007bff;
+            font-size: 1.5em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        #edit-form div {
+            margin-bottom: 15px;
         }
         #edit-form label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: bold;
+            color: #555;
+            font-size: 0.9em;
         }
         #edit-form input[type="text"],
         #edit-form input[type="date"] {
-            width: calc(100% - 16px);
-            padding: 8px;
-            margin-bottom: 15px;
+            width: calc(100% - 20px);
+            padding: 10px;
             border: 1px solid #ccc;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 1em;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease;
+        }
+        #edit-form input[type="text"]:focus,
+        #edit-form input[type="date"]:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+        #edit-form .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 25px;
         }
         #edit-form button {
-            padding: 10px 15px;
-            margin-right: 10px;
+            padding: 10px 20px;
+            margin-left: 10px;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 1em;
+            font-weight: bold;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
         }
         #edit-form #save-task {
-            background-color: #4CAF50;
+            background-color: #28a745;
             color: white;
         }
+        #edit-form #save-task:hover {
+            background-color: #218838;
+            box-shadow: 0 2px 8px rgba(40,167,69,0.3);
+        }
         #edit-form #cancel-edit {
-            background-color: #f44336;
+            background-color: #6c757d;
             color: white;
+        }
+        #edit-form #cancel-edit:hover {
+            background-color: #5a6268;
+            box-shadow: 0 2px 8px rgba(108,117,125,0.3);
         }
     </style>
 </head>
@@ -169,44 +300,58 @@
     <div id="app">
         <div id="task-tree"></div>
         <div id="gantt-chart">
-            <div id="time-scale"></div>
-            <div id="gantt-bars"></div>
+            <div id="time-scale-wrapper">
+                <div id="time-scale"></div>
+            </div>
+            <div id="gantt-content">
+                <div id="gantt-grid"></div>
+                <div id="gantt-bars"></div>
+            </div>
         </div>
     </div>
-    <div id="edit-form" style="display: none;">
+    <div id="edit-form">
         <h3>編輯任務</h3>
-        <label for="task-name">名稱:</label>
-        <input type="text" id="task-name"><br>
-        <label for="task-start">開始日期:</label>
-        <input type="date" id="task-start"><br>
-        <label for="task-finish">結束日期:</label>
-        <input type="date" id="task-finish"><br>
-        <button id="save-task">保存</button>
-        <button id="cancel-edit">取消</button>
+        <div>
+            <label for="task-name">名稱:</label>
+            <input type="text" id="task-name">
+        </div>
+        <div>
+            <label for="task-start">開始日期:</label>
+            <input type="date" id="task-start">
+        </div>
+        <div>
+            <label for="task-finish">結束日期:</label>
+            <input type="date" id="task-finish">
+        </div>
+        <div class="form-actions">
+            <button id="save-task">保存</button>
+            <button id="cancel-edit">取消</button>
+        </div>
     </div>
 
     <script>
-        let timelineData = []; // This will hold the parsed JSON data
-        let originalTimelineData = []; // To store the initial state or last saved state
-        let selectedTask = null; // Currently selected task for editing
-        let currentMaxY = 0; // To track vertical position of Gantt bars
+        let timelineData = [];
+        let originalTimelineData = [];
+        let selectedTask = null;
+        let chartScale = 30; // Pixels per day, adjust as needed for zoom
+        const ROW_HEIGHT = 35; // Height of each task row in Gantt chart
 
         const taskTreeElem = document.getElementById('task-tree');
         const ganttChartElem = document.getElementById('gantt-chart');
         const timeScaleElem = document.getElementById('time-scale');
         const ganttBarsElem = document.getElementById('gantt-bars');
+        const ganttGridElem = document.getElementById('gantt-grid');
         const editFormElem = document.getElementById('edit-form');
         const taskNameInput = document.getElementById('task-name');
         const taskStartInput = document.getElementById('task-start');
         const taskFinishInput = document.getElementById('task-finish');
 
-        // Function to fetch data
         async function fetchData() {
             try {
                 const response = await fetch('timeline-data.json');
                 const data = await response.json();
-                timelineData = data.tasks || []; // Assuming data is { tasks: [...] }
-                // Attempt to load from localStorage first if available, otherwise use fetched data
+                timelineData = data.tasks || [];
+
                 const savedData = localStorage.getItem('timelineData');
                 if (savedData) {
                     console.log('Loading timeline data from localStorage.');
@@ -214,11 +359,10 @@
                 } else {
                     console.log('Fetching fresh timeline data.');
                 }
-                originalTimelineData = JSON.parse(JSON.stringify(timelineData)); // Deep copy for reset/comparison
+                originalTimelineData = JSON.parse(JSON.stringify(timelineData));
                 renderTimeline();
             } catch (error) {
                 console.error('Error fetching timeline data from timeline-data.json:', error);
-                // If fetch fails, try to load from localStorage as a fallback
                 const savedData = localStorage.getItem('timelineData');
                 if (savedData) {
                     console.warn('Falling back to localStorage data.');
@@ -226,6 +370,7 @@
                     originalTimelineData = JSON.parse(JSON.stringify(timelineData));
                     renderTimeline();
                 } else {
+                    taskTreeElem.textContent = '無法加載任務資料。請確認 timeline-data.json 存在或 localStorage 有資料。';
                     console.error('No timeline data available. Please ensure timeline-data.json exists and is valid, or data is saved in localStorage.');
                 }
             }
@@ -243,19 +388,25 @@
             return date.toISOString().split('T')[0];
         }
 
+        function getDaysBetween(d1, d2) {
+            const date1 = new Date(d1);
+            const date2 = new Date(d2);
+            date1.setHours(0, 0, 0, 0);
+            date2.setHours(0, 0, 0, 0);
+            return Math.ceil(Math.abs(date2 - date1) / (1000 * 60 * 60 * 24));
+        }
+
         function renderTimeline() {
-            // Clear existing content
             taskTreeElem.innerHTML = '';
             ganttBarsElem.innerHTML = '';
+            ganttGridElem.innerHTML = ''; // Clear grid as well
             timeScaleElem.innerHTML = '';
-            currentMaxY = 0; // Reset vertical position
-
+            
             if (timelineData.length === 0) {
                 taskTreeElem.textContent = '沒有任務資料。';
                 return;
             }
 
-            // Calculate overall date range for Gantt chart
             const allDates = timelineData.flatMap(task => {
                 const dates = [];
                 if (task.start) dates.push(new Date(task.start));
@@ -268,39 +419,42 @@
                 return;
             }
 
-            const minDate = new Date(Math.min(...allDates));
-            minDate.setDate(minDate.getDate() - 15); // Add some padding
+            let minDate = new Date(Math.min(...allDates));
+            minDate.setDate(minDate.getDate() - 30); // Add more padding
             minDate.setHours(0, 0, 0, 0);
 
-            const maxDate = new Date(Math.max(...allDates));
-            maxDate.setDate(maxDate.getDate() + 15); // Add some padding
+            let maxDate = new Date(Math.max(...allDates));
+            maxDate.setDate(maxDate.getDate() + 30); // Add more padding
             maxDate.setHours(23, 59, 59, 999);
 
-            const chartWidth = ganttChartElem.offsetWidth - 40; // Adjust for padding
-            const totalDaysInRange = (maxDate - minDate) / (1000 * 60 * 60 * 24);
-            const pixelsPerDay = chartWidth / totalDaysInRange;
+            const totalDaysInRange = getDaysBetween(minDate, maxDate);
+            const overallChartWidth = totalDaysInRange * chartScale;
 
-            renderTimeScale(minDate, maxDate, pixelsPerDay);
+            ganttChartElem.style.width = `${overallChartWidth + 40}px`; // Ensure Gantt chart can scroll horizontally
 
-            // Create a flat list of tasks with their calculated Y positions
+            renderTimeScale(minDate, maxDate, overallChartWidth);
+            renderGanttGrid(minDate, maxDate, overallChartWidth);
+
             const tasksWithPositions = [];
-            let yPosition = 0;
+            let yPositionCounter = 0; // To track vertical position for each task item
+            
             const renderTask = (task, level) => {
                 const taskTreeItem = document.createElement('div');
                 taskTreeItem.className = 'task-item';
-                taskTreeItem.style.paddingLeft = `${level * 15}px`;
+                taskTreeItem.style.paddingLeft = `${level * 20 + 20}px`; // Increased indentation
+                taskTreeItem.dataset.taskId = task.unique_id;
 
                 const toggleBtn = document.createElement('span');
                 toggleBtn.className = 'toggle-btn';
                 if (task.summary && task.children && task.children.length > 0) {
-                    toggleBtn.textContent = '▼'; // Down arrow for expanded
+                    toggleBtn.textContent = task.expanded ? '▼' : '►';
                     toggleBtn.onclick = (e) => {
-                        e.stopPropagation(); // Prevent toggling when clicking the text
+                        e.stopPropagation();
                         task.expanded = !task.expanded;
-                        renderTimeline(); // Re-render to show/hide children
+                        renderTimeline();
                     };
                 } else {
-                    toggleBtn.textContent = ''; // No toggle for non-summary or empty summary
+                    toggleBtn.textContent = '';
                 }
                 taskTreeItem.appendChild(toggleBtn);
 
@@ -310,26 +464,35 @@
 
                 if (task.summary) taskTreeItem.classList.add('summary');
                 if (task.milestone) taskTreeItem.classList.add('milestone-tree-item');
+                if (selectedTask && selectedTask.unique_id === task.unique_id) {
+                    taskTreeItem.classList.add('selected');
+                }
 
                 taskTreeElem.appendChild(taskTreeItem);
 
-                // Store task with its calculated Y position
-                tasksWithPositions.push({ task: task, y: yPosition });
-                yPosition += 25; // Line height for each task item
+                // Store task with its calculated Y position for Gantt bars
+                tasksWithPositions.push({ task: task, y: yPositionCounter * ROW_HEIGHT });
+                yPositionCounter++;
 
                 if (task.expanded !== false && task.children && task.children.length > 0) {
                     task.children.forEach(child => renderTask(child, level + 1));
                 }
             };
 
-            // Build hierarchical task structure if not already done
             const topLevelTasks = buildTaskHierarchy(timelineData);
             topLevelTasks.forEach(task => renderTask(task, 0));
+
+            // Set height for gantt-bars container based on total tasks rendered
+            ganttBarsElem.style.height = `${yPositionCounter * ROW_HEIGHT}px`;
+            ganttGridElem.style.height = `${yPositionCounter * ROW_HEIGHT}px`;
+            taskTreeElem.style.minHeight = `${yPositionCounter * ROW_HEIGHT}px`; // Make tree height match Gantt height
+            taskTreeElem.style.maxHeight = `${yPositionCounter * ROW_HEIGHT}px`; // Constrain tree height
+
 
             // Render Gantt Bars
             tasksWithPositions.forEach(item => {
                 const task = item.task;
-                const y = item.y + 50; // Adjust for time scale height
+                const y = item.y; // Already calculated based on ROW_HEIGHT
 
                 if (task.start && task.finish) {
                     const startDate = new Date(task.start);
@@ -337,43 +500,47 @@
 
                     if (isNaN(startDate) || isNaN(finishDate)) return;
 
-                    const startOffsetDays = (startDate - minDate) / (1000 * 60 * 60 * 24);
-                    const durationDays = (finishDate - startDate) / (1000 * 60 * 60 * 24);
+                    const startOffsetDays = getDaysBetween(minDate, startDate);
+                    const durationDays = getDaysBetween(startDate, finishDate) + 1; // +1 to include the finish day
 
                     const bar = document.createElement('div');
                     bar.className = 'gantt-bar';
-                    bar.style.top = `${y}px`;
+                    bar.style.top = `${y + (ROW_HEIGHT - 20) / 2}px`; // Vertically center the 20px bar in the 35px row
                     bar.dataset.taskId = task.unique_id;
+
+                    let barText = document.createElement('span');
+                    barText.className = 'gantt-bar-text';
+                    barText.textContent = task.name;
 
                     if (task.milestone) {
                         bar.classList.add('milestone');
-                        bar.style.left = `${startOffsetDays * pixelsPerDay}px`;
-                        bar.style.setProperty('--start-position', `${startOffsetDays * pixelsPerDay}px`); // For centering diamond
+                        bar.style.left = `${startOffsetDays * chartScale}px`;
+                        bar.style.setProperty('--start-position', `${startOffsetDays * chartScale}px`);
                     } else if (task.summary) {
                         bar.classList.add('summary-task');
-                        bar.style.left = `${startOffsetDays * pixelsPerDay}px`;
-                        bar.style.width = `${durationDays * pixelsPerDay}px`;
+                        bar.style.left = `${startOffsetDays * chartScale}px`;
+                        bar.style.width = `${durationDays * chartScale}px`;
+                        bar.appendChild(barText);
                     } else {
-                        bar.style.left = `${startOffsetDays * pixelsPerDay}px`;
-                        bar.style.width = `${durationDays * pixelsPerDay}px`;
+                        bar.classList.add('normal-task');
+                        bar.style.left = `${startOffsetDays * chartScale}px`;
+                        bar.style.width = `${durationDays * chartScale}px`;
+                        bar.appendChild(barText);
                     }
 
                     bar.onclick = (e) => {
-                        e.stopPropagation(); // Prevent clicking through to other elements
+                        e.stopPropagation();
                         openEditForm(task);
                     };
                     ganttBarsElem.appendChild(bar);
                 }
             });
-            ganttBarsElem.style.height = `${yPosition + 50}px`; // Adjust overall height
-            taskTreeElem.style.maxHeight = `${yPosition + 50}px`;
         }
 
-        // Helper to build task hierarchy based on unique_id and parent_task_unique_id
         function buildTaskHierarchy(flatTasks) {
             const tasksMap = new Map();
             flatTasks.forEach(task => {
-                tasksMap.set(task.unique_id, { ...task, children: [], expanded: true }); // Default to expanded
+                tasksMap.set(task.unique_id, { ...task, children: [], expanded: true });
             });
 
             const rootTasks = [];
@@ -385,7 +552,6 @@
                 }
             });
 
-            // Sort children by unique_id for consistent rendering
             rootTasks.forEach(sortChildren);
             return rootTasks;
         }
@@ -397,55 +563,96 @@
             }
         }
 
-
-        function renderTimeScale(minDate, maxDate, pixelsPerDay) {
+        function renderTimeScale(minDate, maxDate, overallChartWidth) {
             timeScaleElem.innerHTML = '';
             const oneDay = 1000 * 60 * 60 * 24;
 
-            // Render Months
+            const monthRow = document.createElement('div');
+            monthRow.className = 'month-row';
+            monthRow.style.width = `${overallChartWidth}px`;
+            timeScaleElem.appendChild(monthRow);
+
+            const dayRow = document.createElement('div');
+            dayRow.className = 'day-row';
+            dayRow.style.width = `${overallChartWidth}px`;
+            timeScaleElem.appendChild(dayRow);
+
             let currentMonth = new Date(minDate);
-            currentMonth.setDate(1); // Start from the first day of the month
+            currentMonth.setDate(1);
             currentMonth.setHours(0, 0, 0, 0);
 
+            // Render Months
             while (currentMonth <= maxDate) {
                 const nextMonth = new Date(currentMonth);
                 nextMonth.setMonth(nextMonth.getMonth() + 1);
-                nextMonth.setDate(1); // First day of next month
+                nextMonth.setDate(1);
 
-                const monthStartOffsetDays = (currentMonth - minDate) / oneDay;
-                const monthEndOffsetDays = (nextMonth > maxDate ? maxDate : nextMonth - oneDay - minDate) / oneDay;
-                const monthWidthDays = (nextMonth - currentMonth) / oneDay;
+                const monthStartOffsetDays = getDaysBetween(minDate, currentMonth);
+                const monthEnd = nextMonth > maxDate ? maxDate : nextMonth;
+                const monthDurationDays = getDaysBetween(currentMonth, monthEnd);
 
                 const monthLabel = document.createElement('div');
                 monthLabel.className = 'month-label';
-                monthLabel.textContent = currentMonth.toLocaleString('zh-TW', { month: 'short', year: 'numeric' });
-                monthLabel.style.left = `${monthStartOffsetDays * pixelsPerDay}px`;
-                monthLabel.style.width = `${monthWidthDays * pixelsPerDay}px`;
-                timeScaleElem.appendChild(monthLabel);
+                monthLabel.textContent = currentMonth.toLocaleString('zh-TW', { month: 'long', year: 'numeric' });
+                monthLabel.style.left = `${monthStartOffsetDays * chartScale}px`;
+                monthLabel.style.width = `${monthDurationDays * chartScale}px`;
+                monthRow.appendChild(monthLabel);
 
                 currentMonth.setMonth(currentMonth.getMonth() + 1);
             }
 
-            // Render Weeks/Days (simplified to just weeks for brevity)
+            // Render Days
             let currentDay = new Date(minDate);
             while (currentDay <= maxDate) {
-                const dayOffsetDays = (currentDay - minDate) / oneDay;
+                const dayOffsetDays = getDaysBetween(minDate, currentDay);
 
-                // Mark every 7 days as a week start
-                if (currentDay.getDay() === 0) { // Sunday
-                    const weekLabel = document.createElement('div');
-                    weekLabel.className = 'week-label';
-                    weekLabel.textContent = currentDay.toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
-                    weekLabel.style.left = `${dayOffsetDays * pixelsPerDay}px`;
-                    weekLabel.style.width = `${pixelsPerDay * 7}px`; // Roughly a week's width
-                    timeScaleElem.appendChild(weekLabel);
+                const dayLabel = document.createElement('div');
+                dayLabel.className = 'day-label';
+                dayLabel.textContent = currentDay.getDate();
+                dayLabel.style.left = `${dayOffsetDays * chartScale}px`;
+                dayLabel.style.width = `${chartScale}px`;
+
+                if (currentDay.getDay() === 0 || currentDay.getDay() === 6) { // Sunday or Saturday
+                    dayLabel.classList.add('weekend');
                 }
+                dayRow.appendChild(dayLabel);
+
                 currentDay.setDate(currentDay.getDate() + 1);
             }
         }
 
+        function renderGanttGrid(minDate, maxDate, overallChartWidth) {
+            ganttGridElem.innerHTML = '';
+            const oneDay = 1000 * 60 * 60 * 24;
+            let currentGridDay = new Date(minDate);
+
+            ganttGridElem.style.width = `${overallChartWidth}px`;
+
+            while (currentGridDay <= maxDate) {
+                const dayOffsetDays = getDaysBetween(minDate, currentGridDay);
+                const gridLine = document.createElement('div');
+                gridLine.className = 'grid-line-day';
+                gridLine.style.left = `${dayOffsetDays * chartScale}px`;
+
+                if (currentGridDay.getDate() === 1) { // Start of month
+                    gridLine.classList.add('grid-line-month');
+                } else if (currentGridDay.getDay() === 0) { // Start of week (Sunday)
+                    gridLine.classList.add('grid-line-week');
+                }
+                ganttGridElem.appendChild(gridLine);
+                currentGridDay.setDate(currentGridDay.getDate() + 1);
+            }
+        }
+
+
         function openEditForm(task) {
             selectedTask = task;
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            const treeItem = document.querySelector(`.task-item[data-task-id="${task.unique_id}"]`);
+            if (treeItem) treeItem.classList.add('selected');
+
             taskNameInput.value = task.name || '';
             taskStartInput.value = formatDateForInput(task.start);
             taskFinishInput.value = formatDateForInput(task.finish);
@@ -458,23 +665,25 @@
                 selectedTask.start = taskStartInput.value;
                 selectedTask.finish = taskFinishInput.value;
 
-                // Update timelineData
                 const index = timelineData.findIndex(t => t.unique_id === selectedTask.unique_id);
                 if (index !== -1) {
                     timelineData[index] = selectedTask;
                 }
                 saveToLocalStorage();
-                renderTimeline(); // Re-render with updated data
+                renderTimeline();
                 editFormElem.style.display = 'none';
+                selectedTask = null; // Clear selected task
             }
         };
 
         document.getElementById('cancel-edit').onclick = () => {
             editFormElem.style.display = 'none';
+            document.querySelectorAll('.task-item').forEach(item => {
+                item.classList.remove('selected');
+            });
             selectedTask = null;
         };
 
-        // Initial fetch and render
         fetchData();
     </script>
 </body>
