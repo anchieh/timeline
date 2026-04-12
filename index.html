@@ -196,7 +196,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 <body>
 
 <div class="topbar">
-  <h1>Avalue LLM Inference Performance Model</h1>
+  <h1>LLM Inference Performance Model</h1>
   <span class="sub" data-i18n="topbar-sub">BW + Compute 雙瓶頸 · Heterogeneous · AI Streams</span>
   <div class="topbar-right">
     <button id="btn-zh" class="lang-btn on" onclick="setLang('zh')">中</button><button id="btn-en" class="lang-btn" onclick="setLang('en')">EN</button>
@@ -1075,7 +1075,7 @@ function downloadReport(){
   L.push(isZh?'優化建議':'Recommendations'); L.push(s2);
   r.recs.forEach(function(rec){L.push('  '+rec);});
   L.push(''); L.push(s1);
-  L.push('Tool: v4.0 \u00b7 Avalue LLM Perf Model');
+  L.push('Tool: v4.0 \u00b7 LLM Perf Model');
   L.push((isZh?'精度目標':'Precision')+': \u00b115% CPU, \u00b125% GPU/NPU (semi-empirical)');
   var blob=new Blob([L.join(nl)],{type:'text/plain;charset=utf-8'});
   var url=URL.createObjectURL(blob);
